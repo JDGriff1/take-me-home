@@ -5,37 +5,7 @@ import type {
   StudentLoanBreakdown,
   PensionType,
 } from '@/types/calculator';
-
-// 2024/25 Tax Year Constants (England, Wales, Northern Ireland)
-const TAX_BANDS = {
-  personalAllowance: 12570,
-  basicRateThreshold: 50270,
-  higherRateThreshold: 125140,
-  basicRate: 0.2,
-  higherRate: 0.4,
-  additionalRate: 0.45,
-};
-
-const NI_BANDS = {
-  threshold: 12570,
-  upperThreshold: 50270,
-  lowerRate: 0.12,
-  upperRate: 0.02,
-};
-
-const STUDENT_LOAN_THRESHOLDS: Record<StudentLoanPlan, number> = {
-  plan1: 22015,
-  plan2: 27295,
-  plan4: 27660,
-  postgrad: 21000,
-};
-
-const STUDENT_LOAN_RATES: Record<StudentLoanPlan, number> = {
-  plan1: 0.09,
-  plan2: 0.09,
-  plan4: 0.09,
-  postgrad: 0.06,
-};
+import { currentTaxYear, type TaxYearConfig } from '@/config/tax-rates';
 
 /**
  * Calculate pension contribution
@@ -49,34 +19,42 @@ export function calculatePension(
 
 /**
  * Calculate income tax based on taxable income
+ * @param taxableIncome - Annual taxable income
+ * @param config - Tax year configuration (defaults to current tax year)
  */
-export function calculateIncomeTax(taxableIncome: number): number {
+export function calculateIncomeTax(
+  taxableIncome: number,
+  config: TaxYearConfig = currentTaxYear
+): number {
   let tax = 0;
+  const { incomeTax } = config;
 
-  if (taxableIncome <= TAX_BANDS.personalAllowance) {
+  if (taxableIncome <= incomeTax.personalAllowance) {
     return 0;
   }
 
-  const taxableAmount = taxableIncome - TAX_BANDS.personalAllowance;
+  const taxableAmount = taxableIncome - incomeTax.personalAllowance;
+  const basicBand = incomeTax.bands[0]; // basic rate
+  const higherBand = incomeTax.bands[1]; // higher rate
+  const additionalBand = incomeTax.bands[2]; // additional rate
 
-  if (taxableIncome <= TAX_BANDS.basicRateThreshold) {
+  if (taxableIncome <= basicBand.threshold!) {
     // Basic rate only
-    tax = taxableAmount * TAX_BANDS.basicRate;
-  } else if (taxableIncome <= TAX_BANDS.higherRateThreshold) {
+    tax = taxableAmount * basicBand.rate;
+  } else if (taxableIncome <= higherBand.threshold!) {
     // Basic rate + Higher rate
-    const basicRateAmount = TAX_BANDS.basicRateThreshold - TAX_BANDS.personalAllowance;
-    const higherRateAmount = taxableIncome - TAX_BANDS.basicRateThreshold;
-    tax = basicRateAmount * TAX_BANDS.basicRate + higherRateAmount * TAX_BANDS.higherRate;
+    const basicRateAmount = basicBand.threshold! - incomeTax.personalAllowance;
+    const higherRateAmount = taxableIncome - basicBand.threshold!;
+    tax = basicRateAmount * basicBand.rate + higherRateAmount * higherBand.rate;
   } else {
     // Basic + Higher + Additional rate
-    const basicRateAmount = TAX_BANDS.basicRateThreshold - TAX_BANDS.personalAllowance;
-    const higherRateAmount =
-      TAX_BANDS.higherRateThreshold - TAX_BANDS.basicRateThreshold;
-    const additionalRateAmount = taxableIncome - TAX_BANDS.higherRateThreshold;
+    const basicRateAmount = basicBand.threshold! - incomeTax.personalAllowance;
+    const higherRateAmount = higherBand.threshold! - basicBand.threshold!;
+    const additionalRateAmount = taxableIncome - higherBand.threshold!;
     tax =
-      basicRateAmount * TAX_BANDS.basicRate +
-      higherRateAmount * TAX_BANDS.higherRate +
-      additionalRateAmount * TAX_BANDS.additionalRate;
+      basicRateAmount * basicBand.rate +
+      higherRateAmount * higherBand.rate +
+      additionalRateAmount * additionalBand.rate;
   }
 
   return tax;
@@ -84,24 +62,30 @@ export function calculateIncomeTax(taxableIncome: number): number {
 
 /**
  * Calculate National Insurance contributions
+ * @param grossSalary - Annual gross salary (or NI-able income for salary sacrifice)
+ * @param config - Tax year configuration (defaults to current tax year)
  */
-export function calculateNationalInsurance(grossSalary: number): number {
+export function calculateNationalInsurance(
+  grossSalary: number,
+  config: TaxYearConfig = currentTaxYear
+): number {
   let ni = 0;
+  const { class1Employee } = config.nationalInsurance;
 
-  if (grossSalary <= NI_BANDS.threshold) {
+  if (grossSalary <= class1Employee.lowerThreshold) {
     return 0;
   }
 
-  const niableAmount = grossSalary - NI_BANDS.threshold;
+  const niableAmount = grossSalary - class1Employee.lowerThreshold;
 
-  if (grossSalary <= NI_BANDS.upperThreshold) {
+  if (grossSalary <= class1Employee.upperThreshold) {
     // Lower rate only
-    ni = niableAmount * NI_BANDS.lowerRate;
+    ni = niableAmount * class1Employee.lowerRate;
   } else {
     // Lower rate + Upper rate
-    const lowerNIAmount = NI_BANDS.upperThreshold - NI_BANDS.threshold;
-    const upperNIAmount = grossSalary - NI_BANDS.upperThreshold;
-    ni = lowerNIAmount * NI_BANDS.lowerRate + upperNIAmount * NI_BANDS.upperRate;
+    const lowerNIAmount = class1Employee.upperThreshold - class1Employee.lowerThreshold;
+    const upperNIAmount = grossSalary - class1Employee.upperThreshold;
+    ni = lowerNIAmount * class1Employee.lowerRate + upperNIAmount * class1Employee.upperRate;
   }
 
   return ni;
@@ -109,13 +93,18 @@ export function calculateNationalInsurance(grossSalary: number): number {
 
 /**
  * Calculate student loan repayment for a single plan
+ * @param grossSalary - Annual gross salary
+ * @param plan - Student loan plan type
+ * @param config - Tax year configuration (defaults to current tax year)
  */
 export function calculateStudentLoan(
   grossSalary: number,
-  plan: StudentLoanPlan
+  plan: StudentLoanPlan,
+  config: TaxYearConfig = currentTaxYear
 ): number {
-  const threshold = STUDENT_LOAN_THRESHOLDS[plan];
-  const rate = STUDENT_LOAN_RATES[plan];
+  const planConfig = config.studentLoans[plan];
+  const threshold = planConfig.threshold;
+  const rate = planConfig.rate;
 
   if (grossSalary <= threshold) {
     return 0;
@@ -126,14 +115,18 @@ export function calculateStudentLoan(
 
 /**
  * Calculate student loan repayments for multiple plans
+ * @param grossSalary - Annual gross salary
+ * @param plans - Array of student loan plans
+ * @param config - Tax year configuration (defaults to current tax year)
  */
 export function calculateStudentLoans(
   grossSalary: number,
-  plans: StudentLoanPlan[]
+  plans: StudentLoanPlan[],
+  config: TaxYearConfig = currentTaxYear
 ): { total: number; breakdown: StudentLoanBreakdown[] } {
   const breakdown: StudentLoanBreakdown[] = plans.map((plan) => ({
     plan,
-    amount: calculateStudentLoan(grossSalary, plan),
+    amount: calculateStudentLoan(grossSalary, plan, config),
   }));
 
   const total = breakdown.reduce((sum, item) => sum + item.amount, 0);
@@ -143,8 +136,13 @@ export function calculateStudentLoans(
 
 /**
  * Calculate complete take home pay breakdown
+ * @param inputs - Calculator inputs (salary, pension, loans, etc.)
+ * @param config - Tax year configuration (defaults to current tax year)
  */
-export function calculateTakeHome(inputs: CalculatorInputs): CalculationResult {
+export function calculateTakeHome(
+  inputs: CalculatorInputs,
+  config: TaxYearConfig = currentTaxYear
+): CalculationResult {
   const { grossSalary, pensionPercentage, pensionType, studentLoanPlans } = inputs;
 
   // Calculate pension contribution
@@ -180,10 +178,10 @@ export function calculateTakeHome(inputs: CalculatorInputs): CalculationResult {
     pensionTaxRelief = 0;
   }
 
-  // Calculate all deductions
-  const incomeTax = calculateIncomeTax(taxableIncome);
-  const nationalInsurance = calculateNationalInsurance(niableIncome);
-  const studentLoans = calculateStudentLoans(grossSalary, studentLoanPlans);
+  // Calculate all deductions using tax year config
+  const incomeTax = calculateIncomeTax(taxableIncome, config);
+  const nationalInsurance = calculateNationalInsurance(niableIncome, config);
+  const studentLoans = calculateStudentLoans(grossSalary, studentLoanPlans, config);
 
   // Calculate totals
   let totalDeductions: number;

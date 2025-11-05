@@ -1,0 +1,62 @@
+{
+  "taxYear": "2024-25",
+  "region": "england-wales-ni",
+  "effectiveFrom": "2024-04-06",
+  "effectiveTo": "2025-04-05",
+  "incomeTax": {
+    "personalAllowance": 12570,
+    "personalAllowanceTaperThreshold": 100000,
+    "personalAllowanceTaperRate": 0.5,
+    "bands": [
+      {
+        "name": "basic",
+        "threshold": 50270,
+        "rate": 0.20
+      },
+      {
+        "name": "higher",
+        "threshold": 125140,
+        "rate": 0.40
+      },
+      {
+        "name": "additional",
+        "threshold": null,
+        "rate": 0.45
+      }
+    ]
+  },
+  "nationalInsurance": {
+    "class1Employee": {
+      "lowerThreshold": 12570,
+      "upperThreshold": 50270,
+      "lowerRate": 0.12,
+      "upperRate": 0.02
+    },
+    "class1Employer": {
+      "threshold": 9100,
+      "rate": 0.138
+    }
+  },
+  "studentLoans": {
+    "plan1": {
+      "threshold": 22015,
+      "rate": 0.09
+    },
+    "plan2": {
+      "threshold": 27295,
+      "rate": 0.09
+    },
+    "plan4": {
+      "threshold": 27660,
+      "rate": 0.09
+    },
+    "postgrad": {
+      "threshold": 21000,
+      "rate": 0.06
+    }
+  },
+  "other": {
+    "apprenticeshipLevyThreshold": 3000000,
+    "apprenticeshipLevyRate": 0.005
+  }
+}

@@ -53,7 +53,7 @@ Gross Salary: £40,000
 Your commute time has value. Options:
 1. **Show hours only** (informational): "520 hours/year = 13 work weeks"
 2. **Assign £ value** (user choice): 520 hours × £15/hour = £7,800
-3. **Calculated from salary**: £40,000 / 1,820 working hours = £22/hour
+3. **Calculated from salary**: £40,000 / 1,950 working hours (37.5 hrs/week) = £20.51/hour
 
 Users can choose whether to include time cost in "Effective Take Home" or just see it for context.
 
@@ -237,9 +237,10 @@ Your time value: £15.00/hour
 
 **2. Calculated from salary (smart default)**
 ```typescript
-const hourlyRate = grossSalary / 1820; // 52 weeks × 35 hours
-// Show: "Based on your salary: £19/hour"
-// User can override
+const weeklyHours = 37.5; // User configurable, UK standard full-time
+const hourlyRate = grossSalary / (52 * weeklyHours);
+// Show: "Based on your salary: £19/hour (37.5 hrs/week)"
+// User can override both weekly hours and hourly rate
 ```
 
 **3. Informational only**
@@ -525,10 +526,21 @@ export function calculateCommuteCosts(
 
 /**
  * Calculate time value per hour from salary
+ * @param grossSalary - Annual gross salary
+ * @param weeklyHours - Hours worked per week (default 37.5, UK standard full-time)
+ * @returns Hourly rate, or 0 if invalid inputs
  */
-export function calculateTimeValueFromSalary(grossSalary: number): number {
-  const STANDARD_WORKING_HOURS = 1820; // 52 weeks × 35 hours
-  return grossSalary / STANDARD_WORKING_HOURS;
+export function calculateTimeValueFromSalary(
+  grossSalary: number,
+  weeklyHours: number = 37.5
+): number {
+  // Validate inputs
+  if (grossSalary <= 0 || weeklyHours <= 0) {
+    return 0;
+  }
+
+  const annualWorkingHours = 52 * weeklyHours;
+  return grossSalary / annualWorkingHours;
 }
 ```
 

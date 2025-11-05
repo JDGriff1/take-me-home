@@ -296,8 +296,9 @@ export function EmployerCostsBreakdown({
     }).format(amount);
   };
 
-  const employerBurden =
-    ((employerCosts.totalCostToCompany - grossSalary) / grossSalary) * 100;
+  const employerBurden = grossSalary > 0
+    ? ((employerCosts.totalCostToCompany - grossSalary) / grossSalary) * 100
+    : 0;
 
   return (
     <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 sm:p-5 space-y-2.5">

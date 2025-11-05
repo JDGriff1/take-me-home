@@ -125,7 +125,6 @@ export type ComparisonAction =
 'use client';
 
 import { createContext, useContext, useReducer, ReactNode } from 'react';
-import { nanoid } from 'nanoid'; // or crypto.randomUUID()
 import type {
   Scenario,
   ComparisonState,
@@ -191,7 +190,7 @@ function comparisonReducer(
 
       const duplicate: Scenario = {
         ...original,
-        id: nanoid(),
+        id: crypto.randomUUID(),
         name: `${original.name} (copy)`,
         createdAt: new Date(),
       };
@@ -448,6 +447,8 @@ Table view alternative to cards (might be clearer for data comparison).
 
 **Example:**
 ```typescript
+import debounce from 'lodash/debounce';
+
 const [inputs, setInputs] = useState(scenario.inputs);
 
 // Debounce updates to avoid too many recalculations
@@ -459,12 +460,21 @@ const debouncedDispatch = useMemo(
   [dispatch]
 );
 
+// Cleanup debounce on unmount
+useEffect(() => {
+  return () => {
+    debouncedDispatch.cancel();
+  };
+}, [debouncedDispatch]);
+
 const handleInputChange = (field: string, value: any) => {
   const newInputs = { ...inputs, [field]: value };
   setInputs(newInputs); // Immediate UI update
   debouncedDispatch(scenario.id, newInputs); // Debounced calculation
 };
 ```
+
+**Note:** This is conceptual - actual implementation will need lodash dependency or custom debounce utility.
 
 ## Implementation Plan
 
